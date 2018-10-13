@@ -49,10 +49,34 @@ public class CsvUtil {
 	 * CSV形式で出力する。
 	 *
 	 * */
-	public static void writeCsv() throws UnsupportedEncodingException, IOException {
+	public static void writeCsv_sample() throws UnsupportedEncodingException, IOException {
 		List<String[]> csv = Arrays.asList(new String[] { "1", "2" }, new String[] { "3", "4" });
 
 		FileOutputStream out = new FileOutputStream("opencsv.csv");
+		Writer writer = new OutputStreamWriter(out);
+		CSVWriter csvWriter = new CSVWriter(writer);
+		csvWriter.writeAll(csv);
+
+		csvWriter.close();
+		writer.close();
+		out.close();
+	}
+
+	/*
+	 * CSVデータを書き込む。
+	 *
+	 * */
+	/**
+	 * @param fileName 出力先のCSVファイル
+	 * @param data 出力データ
+	 * @throws UnsupportedEncodingException
+	 * @throws IOException
+	 */
+	public static void writeCsv_sample(String fileName, String[] data)
+			throws UnsupportedEncodingException, IOException {
+
+		List<String[]> csv = Arrays.asList(data,data);
+		FileOutputStream out = new FileOutputStream(fileName);
 		Writer writer = new OutputStreamWriter(out);
 		CSVWriter csvWriter = new CSVWriter(writer);
 		csvWriter.writeAll(csv);

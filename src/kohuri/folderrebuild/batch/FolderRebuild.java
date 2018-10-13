@@ -5,6 +5,10 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 
 import au.com.bytecode.opencsv.CSVReader;
 import kohuri.folderrebuild.common.constantCommon;
@@ -27,9 +31,6 @@ public class FolderRebuild {
 	static LoggerUtil batchLog = new LoggerUtil();
 	// 再帰的にファイルを探してコピーするためのフラグ
 	private static boolean foundFile = false;
-
-	// 初期化：cntJpgFile JPGファイルカウント数=0
-	private static int cntJpgFile = 0;
 
 	// プロパティ保存用
 	propertyCommon collectionProperty = new propertyCommon();
@@ -69,7 +70,9 @@ public class FolderRebuild {
 		String nijiOcrCsvFileName = null; /*二次OCR対象ファイル名*/
 
 		//2次OCRデータ書き込み用
-		String[] nijiOcrCsvData = new String[5];
+		String[] nijiOcrCsvArray = new String[5];
+		List<String[]> nijiOcrCsvList = new ArrayList<String[]>();
+
 
 
 		// 初期化：プロパティファイル値取得用
@@ -175,48 +178,53 @@ public class FolderRebuild {
 				}
 
 
-				//処理：イメージファイルをbatchsets送信フォルダにコピーする
+				//処理：イメージファイルをbatchsets送信フォルダにコピーする(上書き方式)
 				File sourceImageDirectory = new File(propInputRootPath + "\\" + scanReadDate);
 				copyFileRecursively(sourceImageDirectory,currentSendFolderName,imgFileName);
-				//コピーフラグをリセットする
-				foundFile = false;
+				//判断：コピー元ファイルが存在した場合
+				if(foundFile)
+				{
+					//書き込み用データを退避する。
+					//処理1:前回の対象フォルダの直下に2次OCR対象ファイルを作成する。
+					nijiOcrCsvArray[0] = batchNo; //バッチ番号
+					nijiOcrCsvArray[1] = batchSerialNo; //バッチ内連番
+					nijiOcrCsvArray[2] = scanReadDate; //スキャナ読取り日
+					nijiOcrCsvArray[3] = "0"; //依頼書形式０で固定
+					nijiOcrCsvArray[4] = "0"; //回転フラグ
 
-				//処理1:前回の対象フォルダの直下に2次OCR対象ファイルを作成する。
-				nijiOcrCsvData[0] = batchNo; //バッチ番号
-				nijiOcrCsvData[1] = batchSerialNo; //バッチ内連番
-				nijiOcrCsvData[2] = scanReadDate; //スキャナ読取り日
-				nijiOcrCsvData[3] = "0"; //依頼書形式０で固定
-				nijiOcrCsvData[4] = "0"; //回転フラグ
-				writeCsvDataToNijiOcrCsvFile(nijiOcrCsvFileName, nijiOcrCsvData);
+					nijiOcrCsvList.add(nijiOcrCsvArray);
+
+					//コピーフラグをリセットする
+					foundFile = false;
+				}
 
 
 				// 判断A：結果CSVファイルを作成すべきかどうか
 				// 判断基準：前回退避した送信フォルダがnullでない且つ今回の送信フォルダ名と
-				//			 違うときである。！
+				//			 違うときである。
 				if (oldSendFolderName != "" && !oldSendFolderName.equals(currentSendFolderName)) {
 
+					//2次OCR対象ファイル、受信監視ファイル、送信完了ファイル名作成用のTimeStampを作成
+					Calendar  rightNow = Calendar.getInstance();
+
+			        //フォーマットパターンを指定して表示する
+			        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddhhmmss");
+					String fileTimeStamp = sdf.format(rightNow.getTime());
+
+					// 処理1:2次OCR対象データをまとめて書き込む
+					writeCsvDataToNijiOcrCsvFile(oldSendFolderName, fileTimeStamp, nijiOcrCsvList);
+
 					// 処理2:exportsフォルダに空の受信監視ファイルを作成する。
-					makeFileJyusinKansiFolder(exportFolderRootPath, "");
+					makeFileJyusinKansiFolder(exportFolderRootPath, oldSendFolderName,fileTimeStamp);
 
 					// 処理3:imports\scanフォルダの直下に送信完了ファイルを作成する。
-					makeFileSosinKanryoFolder(scanFolderRootPath, "");
+					makeFileSosinKanryoFolder(scanFolderRootPath, oldSendFolderName,fileTimeStamp, 0);
 
-					// 処理4:JPGファイルカウント数をリセットする。
-					cntJpgFile = 0;
+					// 処理4:2次OCR対象書き込み用Listを初期化する。
+					nijiOcrCsvList.clear();
+
 				}
 
-
-//				// 判断A：JPGファイルカウント数>0の場合
-//				if (cntJpgFile > 0) {
-//
-//
-//
-//				}
-//
-//				// 判断B：JPGファイルのカウント数が0の場合は、初期の場合なので、何もしない
-//				else {
-//					//何もなし
-//				}
 
 			}
 
@@ -231,16 +239,17 @@ public class FolderRebuild {
 
 
 	/**
-	 * 2次OCR対象データファイルを作成する。
-	 * @param senderFolderName
+	 * 2次OCR対象CSVデータを書き込む
+	 * @param sousinFolderName: 送信フォルダ名
+	 * @param fileTimeStamp：送信フォルダの後ろについて来るタイムスタンプ
 	 * @param csvData
 	 */
-	private void writeCsvDataToNijiOcrCsvFile(String fileNameFullPath,  String[] csvData)
+	private void writeCsvDataToNijiOcrCsvFile(String sousinFolderName, String fileTimeStamp, List<String[]> csvData)
 	{
 		//初期化
 		String nijiOcrFileName = null;
 
-		batchLog.writerLog("2次OCR対象データファイル名：" + nijiOcrFileName, BatchLogLevel.TRACE);
+		batchLog.writerLog("2次OCR対象データ書き込み：" + nijiOcrFileName, BatchLogLevel.TRACE);
 
 
 		//2次OCR対象データファイル名を取得する。
@@ -274,12 +283,14 @@ public class FolderRebuild {
 
 	}
 
+
 	/**
-	 * 受信監視ファイルを作成する。
-	 * @param rootPath
-	 * @param value
+	 * ②exportフォルダに受信監視ファイルを作成（中身は空）
+	 * @param rootPath：exportsフォルダの直下
+	 * @param sousinFolderName: 送信フォルダ名
+	 * @param fileTimeStamp：送信フォルダの後ろについて来るタイムスタンプ
 	 */
-	private void makeFileJyusinKansiFolder(String rootPath, String fileName)
+	private void makeFileJyusinKansiFolder(String rootPath, String sousinFolderName, String fileTimeStamp)
 	{
 
 
@@ -289,11 +300,12 @@ public class FolderRebuild {
 
 	/**
 	 * ③scanフォルダに送信完了ファイルを作成
-	 * @param rootPath
-	 * @param fileName
-	 * @param cnt（jpgファイルカウント数）
+	 * @param rootPath: scanフォルダの直下
+	 * @param sousinFolderName：送信フォルダ名
+	 * @param fileTimeStamp：送信フォルダの後ろについて来るタイムスタンプ
+	 * @param cnt：送信フォルダにあるJpgファイルの数
 	 */
-	private void makeFileSosinKanryoFolder(String rootPath, String fileName, int cnt)
+	private void makeFileSosinKanryoFolder(String rootPath, String sousinFolderName, String fileTimeStamp, int cnt)
 	{
 
 	}
@@ -452,7 +464,6 @@ public class FolderRebuild {
 
 				try {
 					copyFile(copyFromFile, copyToFile);
-					cntJpgFile++;
 					foundFile = true;
 					batchLog.writerLog(copyFromFile + "を" + copyToFile + "にコピーしました。", BatchLogLevel.DEBUG);
 				} catch (Exception e) {
