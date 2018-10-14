@@ -62,24 +62,21 @@ public class CsvUtil {
 		out.close();
 	}
 
-	/*
-	 * CSVデータを書き込む。
-	 *
-	 * */
+
 	/**
+	 * ファイルにCSVデータを書き込む
 	 * @param fileName 出力先のCSVファイル
-	 * @param data 出力データ
+	 * @param csvData 書き込み用データ
 	 * @throws UnsupportedEncodingException
 	 * @throws IOException
 	 */
-	public static void writeCsv_sample(String fileName, String[] data)
+	public static void writeCsvData(String fileName, List<String[]> csvData)
 			throws UnsupportedEncodingException, IOException {
 
-		List<String[]> csv = Arrays.asList(data,data);
 		FileOutputStream out = new FileOutputStream(fileName);
-		Writer writer = new OutputStreamWriter(out);
-		CSVWriter csvWriter = new CSVWriter(writer);
-		csvWriter.writeAll(csv);
+		Writer writer = new OutputStreamWriter(out,"Shift_JIS");
+		CSVWriter csvWriter = new CSVWriter(writer, ',', '"', "\r\n");
+		csvWriter.writeAll(csvData);
 
 		csvWriter.close();
 		writer.close();
