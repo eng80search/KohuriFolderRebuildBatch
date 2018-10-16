@@ -1,5 +1,6 @@
 /**
- *
+ *CSV操作クラス
+ *使用ライブラリ OpenCSV 2.3 ライセンスはApache License 2.0
  */
 package kohuri.folderrebuild.util;
 

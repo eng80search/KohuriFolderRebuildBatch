@@ -4,6 +4,7 @@
 package kohuri.folderrebuild.common;
 
 /**
+ * 色々必要な列挙体をここで定義する。
  * @author user1
  *
  */

@@ -1,6 +1,4 @@
 @echo off
-REM 文字コードをUTF8に設定する
-chcp 65001
 
 echo --batch-- Jarバッチファイルを実行します。
 echo --batch-- startTime:  %date% %time%
