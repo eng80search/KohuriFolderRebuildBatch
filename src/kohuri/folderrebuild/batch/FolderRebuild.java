@@ -75,6 +75,7 @@ public class FolderRebuild {
 
 		//2次OCRデータ書き込み用
 		List<String[]> nijiOcrCsvList = new ArrayList<String[]>();
+		int csvDataCnt = 0; //2次OCRデータ書き込み件数
 
 		// 初期化：プロパティファイル値取得用
 		String propInputRootPath = null;
@@ -104,15 +105,18 @@ public class FolderRebuild {
 			// ③Loop処理:CSVファイルを一行読み取る。(レコードが何万件なので、仕方なくここに書く)
 
 			CSVReader reader = new CSVReader(new FileReader(propInfoCsvFileName));
-			String[] nextLine;
 
 			//ソートのために一気にCSVファイルを読み取りする。
 			readAllCsvList = reader.readAll();
 			//ヘッダは削除する。
-			if(readAllCsvList.size() > 0) readAllCsvList.remove(0);
+			if (readAllCsvList.size() > 0)
+				readAllCsvList.remove(0);
 
-			for (String[] csvValueArray : readAllCsvList)
-			{
+			//バッチの件数
+			batchLog.writerLog("CSVファイル全件数：" + readAllCsvList.size()
+								, BatchLogLevel.INFO);
+
+			for (String[] csvValueArray : readAllCsvList) {
 
 				CsvFileSort oneRowCsvData = new CsvFileSort();
 
@@ -128,42 +132,42 @@ public class FolderRebuild {
 						batchNo = getFormattedBatchNo(csvValueArray[i]); //左0埋め
 						oneRowCsvData.setBatchNo(batchNo);
 
-//						batchLog.writerLog("バッチ番号：" + batchNo, BatchLogLevel.TRACE);
+						//						batchLog.writerLog("バッチ番号：" + batchNo, BatchLogLevel.TRACE);
 						break;
 					//バッチ連番
 					case constantCommon.CSV_INDEX_BATCH_SERIALNO:
 						batchSerialNo = getFormattedBatchSerialNo(csvValueArray[i]);
 						oneRowCsvData.setBatchSerialNo(batchSerialNo);
 
-//						batchLog.writerLog("バッチ連番：" + batchSerialNo, BatchLogLevel.TRACE);
+						//						batchLog.writerLog("バッチ連番：" + batchSerialNo, BatchLogLevel.TRACE);
 						break;
 					//レコード連番（送信完了ファイルの回次に使用される）
 					case constantCommon.CSV_INDEX_RECORD_SERIALNO:
 						recordSerialNo = getFormattedRecordSerialNo(csvValueArray[i]);
 						oneRowCsvData.setRecordSerialNo(recordSerialNo);
 
-//						batchLog.writerLog("レコード連番：" + recordSerialNo, BatchLogLevel.TRACE);
+						//						batchLog.writerLog("レコード連番：" + recordSerialNo, BatchLogLevel.TRACE);
 						break;
 					//スキャナ読取日
 					case constantCommon.CSV_INDEX_SCANDATE:
 						scanReadDate = csvValueArray[i];
 						oneRowCsvData.setScanReadDate(scanReadDate);
 
-//						batchLog.writerLog("スキャナ読取日：" + scanReadDate, BatchLogLevel.TRACE);
+						//						batchLog.writerLog("スキャナ読取日：" + scanReadDate, BatchLogLevel.TRACE);
 						break;
 					//委託者コード
 					case constantCommon.CSV_INDEX_ITAKUSYACODE:
 						itakuSyaCode = getFormattedItakkusyaCode(csvValueArray[i]);
 						oneRowCsvData.setItakuSyaCode(itakuSyaCode);
 
-//						batchLog.writerLog("委託者コード：" + itakuSyaCode, BatchLogLevel.TRACE);
+						//						batchLog.writerLog("委託者コード：" + itakuSyaCode, BatchLogLevel.TRACE);
 						break;
 					//イメージファイル名
 					case constantCommon.CSV_INDEX_JPGNAME:
-						imgFileName =csvValueArray[i];
+						imgFileName = csvValueArray[i];
 						oneRowCsvData.setImgFileName(imgFileName);
 
-//						batchLog.writerLog("イメージファイル名：" + imgFileName, BatchLogLevel.TRACE);
+						//						batchLog.writerLog("イメージファイル名：" + imgFileName, BatchLogLevel.TRACE);
 						break;
 					default:
 
@@ -174,18 +178,18 @@ public class FolderRebuild {
 				readAllSortedCsvList.add(oneRowCsvData);
 			}
 
-			// CSV全データを読み終わったのでソートする
+			// CSV全データを読み終わったのでソートする（効果がない？？）
 			Collections.sort(readAllSortedCsvList);
 
 			//テスト用コード
-//			String testValue = null;
-//			for(CsvFileSort clsValue:readAllSortedCsvList) {
-//				testValue = "";
-//				testValue += clsValue.getScanReadDate() + clsValue.getBatchNo()
-//					+ clsValue.getRecordSerialNo() + clsValue.getItakuSyaCode();
-//				batchLog.writerLog("ソート済データ出力", BatchLogLevel.TRACE);
-//				batchLog.writerLog(testValue, BatchLogLevel.TRACE);
-//			}
+			//			String testValue = null;
+			//			for(CsvFileSort clsValue:readAllSortedCsvList) {
+			//				testValue = "";
+			//				testValue += clsValue.getScanReadDate() + clsValue.getBatchNo()
+			//					+ clsValue.getRecordSerialNo() + clsValue.getItakuSyaCode();
+			//				batchLog.writerLog("ソート済データ出力", BatchLogLevel.TRACE);
+			//				batchLog.writerLog(testValue, BatchLogLevel.TRACE);
+			//			}
 
 			//ループ処理（ソート済のCSVデータ）
 			// 処理：フォルダ再構築に必要な情報を取得する。
@@ -243,14 +247,14 @@ public class FolderRebuild {
 					String fileTimeStamp = sdf.format(rightNow.getTime());
 
 					// 処理1:2次OCR対象データをまとめて書き込む
-					writeCsvDataToNijiOcrCsvFile(oldSoshinFolderName, nijiOcrCsvList);
+					csvDataCnt = writeCsvDataToNijiOcrCsvFile(oldSoshinFolderName, nijiOcrCsvList);
 
 					// 処理2:exportsフォルダに空の受信監視ファイルを作成する。
 					makeFileJyusinKansiFolder(exportFolderRootPath, oldSoshinFolderName, fileTimeStamp);
 
 					// 処理3:imports\scanフォルダの直下に送信完了ファイルを作成する。
 					makeFileSosinKanryoFolder(scanFolderRootPath, oldSoshinFolderName, fileTimeStamp,
-							nijiOcrCsvList.size());
+							csvDataCnt);
 
 					// 処理4:2次OCR対象書き込み用Listを初期化する。
 					nijiOcrCsvList.clear();
@@ -310,162 +314,9 @@ public class FolderRebuild {
 				nijiOcrCsvList.clear();
 			}
 
-
 			// 処理4:2次OCR対象書き込み用Listを初期化する。
 			nijiOcrCsvList.clear();
 
-
-//			// CSVファイルヘッダは読み飛ばす
-//			reader.readNext();
-//
-//			//ループ処理（ここでごちゃごちゃやる感じ）
-//			// 処理：フォルダ再構築に必要な情報を取得する。
-//			while ((nextLine = reader.readNext()) != null) {
-//
-//				//①一行CSVファイルを読んで、必要な値を取得する
-//				for (int i = 0; i < nextLine.length; i++) {
-//
-//					//必要以上読まない
-//					if (i > constantCommon.CSV_INDEX_JPGNAME)
-//						break;
-//
-//					switch (i) {
-//					//バッチ番号
-//					case constantCommon.CSV_INDEX_BATCHNO:
-//						batchNo = nextLine[i];
-//						batchNo = getFormattedBatchNo(batchNo); //左0埋め
-//						batchLog.writerLog("バッチ番号：" + batchNo, BatchLogLevel.TRACE);
-//						break;
-//					//バッチ連番
-//					case constantCommon.CSV_INDEX_BATCH_SERIALNO:
-//						batchSerialNo = getFormattedBatchSerialNo(nextLine[i]);
-//						batchLog.writerLog("バッチ連番：" + batchSerialNo, BatchLogLevel.TRACE);
-//						break;
-//					//レコード連番（送信完了ファイルの回次に使用される）
-//					case constantCommon.CSV_INDEX_RECORD_SERIALNO:
-//						recordSerialNo = getFormattedRecordSerialNo(nextLine[i]);
-//						batchLog.writerLog("レコード連番：" + recordSerialNo, BatchLogLevel.TRACE);
-//						break;
-//					//スキャナ読取日
-//					case constantCommon.CSV_INDEX_SCANDATE:
-//						scanReadDate = nextLine[i];
-//						batchLog.writerLog("スキャナ読取日：" + scanReadDate, BatchLogLevel.TRACE);
-//						break;
-//					//委託者コード
-//					case constantCommon.CSV_INDEX_ITAKUSYACODE:
-//						itakuSyaCode = nextLine[i];
-//						itakuSyaCode = getFormattedItakkusyaCode(itakuSyaCode);
-//						batchLog.writerLog("委託者コード：" + itakuSyaCode, BatchLogLevel.TRACE);
-//						break;
-//					//イメージファイル名
-//					case constantCommon.CSV_INDEX_JPGNAME:
-//						imgFileName = nextLine[i];
-//						batchLog.writerLog("イメージファイル名：" + imgFileName, BatchLogLevel.TRACE);
-//						break;
-//					default:
-//
-//					}
-//				} // ②ここまで一行読み終わり
-//
-//				// 処理１：前のフォルダ情報を退避する。
-//				oldSoshinFolderName = new String(currentSoshinFolderName.toString());
-//
-//				// 処理２.送信フォルダ名を取得する。
-//				currentSoshinFolderName = getSenderFolderName(sendFolderRootPath, scanReadDate, batchNo, recordSerialNo,
-//						itakuSyaCode);
-//
-//				// 処理３：イメージファイルをbatchsets送信フォルダにコピーする(上書き方式)
-//				File sourceImageDirectory = new File(propInputRootPath + "\\" + scanReadDate);
-//
-//				// 処理４：イメージソースファイル名を取得する。
-//				batchLog.writerLog("sourceImageDirectory：" + sourceImageDirectory.getPath(), BatchLogLevel.TRACE);
-//				imgFileNameFullPath = findFileInSubdirectory(sourceImageDirectory, imgFileName);
-//
-//				// 判断A：前回の結果CSVファイルを作成必要があったら作成する。
-//				// 判断基準：前回退避した送信フォルダがnullでない且つ今回の送信フォルダ名と
-//				//			 違うとき且つ前回コピーが行われている時である。
-//				if (!oldSoshinFolderName.equals("") && !oldSoshinFolderName.equals(currentSoshinFolderName)
-//						&& nijiOcrCsvList.size() > 0) {
-//
-//					//2次OCR対象ファイル、受信監視ファイル、送信完了ファイル名作成用のTimeStampを作成
-//					Calendar rightNow = Calendar.getInstance();
-//
-//					//フォーマットパターンを指定して表示する
-//					SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
-//					String fileTimeStamp = sdf.format(rightNow.getTime());
-//
-//					// 処理1:2次OCR対象データをまとめて書き込む
-//					writeCsvDataToNijiOcrCsvFile(oldSoshinFolderName, nijiOcrCsvList);
-//
-//					// 処理2:exportsフォルダに空の受信監視ファイルを作成する。
-//					makeFileJyusinKansiFolder(exportFolderRootPath, oldSoshinFolderName, fileTimeStamp);
-//
-//					// 処理3:imports\scanフォルダの直下に送信完了ファイルを作成する。
-//					makeFileSosinKanryoFolder(scanFolderRootPath, oldSoshinFolderName, fileTimeStamp,
-//							nijiOcrCsvList.size());
-//
-//					// 処理4:2次OCR対象書き込み用Listを初期化する。
-//					nijiOcrCsvList.clear();
-//				}
-//
-//				//重要！！コピー元イメージソースファイルがなければ後続のフォルダ再構築処理は行わない。
-//				if (imgFileNameFullPath == null) {
-//
-//					continue;
-//				}
-//
-//				batchLog.writerLog("currentSoshinFolderName：" + currentSoshinFolderName, BatchLogLevel.TRACE);
-//
-//				// 判断：batchestsの直下に送信フォルダサブディレクトリが存在するか
-//				if (!exsistDirectory(currentSoshinFolderName)) {
-//					// 存在しない場合:
-//
-//					// 処理１：新規フォルダを作成する。
-//					String newFolder[] = { currentSoshinFolderName };
-//					createDirectory(newFolder);
-//					batchLog.writerLog("送信フォルダ名：" + currentSoshinFolderName, BatchLogLevel.TRACE);
-//
-//				}
-//
-//
-//				// 処理：イメージファイルを目的フォルダにコピーする。
-//				copyFileInSubdirectory(imgFileNameFullPath, currentSoshinFolderName, imgFileName);
-//
-//				String[] csvData = { batchNo, batchSerialNo, scanReadDate, "0", "0" };
-//				nijiOcrCsvList.add(csvData);
-//
-//				batchLog.writerLog("oldSendFolderName：" + oldSoshinFolderName
-//						+ "  currentSendFolderName：" + currentSoshinFolderName, BatchLogLevel.TRACE);
-//
-//			} //CSVループ処理終わり
-//
-//			//最後に読み込んだレコードが残っているので、書き出す。
-//			if (nijiOcrCsvList.size() > 0) {
-//
-//				//2次OCR対象ファイル、受信監視ファイル、送信完了ファイル名作成用のTimeStampを作成
-//				Calendar rightNow = Calendar.getInstance();
-//
-//				//フォーマットパターンを指定して表示する
-//				SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
-//				String fileTimeStamp = sdf.format(rightNow.getTime());
-//
-//				// 処理1:2次OCR対象データをまとめて書き込む
-//				writeCsvDataToNijiOcrCsvFile(currentSoshinFolderName, nijiOcrCsvList);
-//
-//				// 処理2:exportsフォルダに空の受信監視ファイルを作成する。
-//				makeFileJyusinKansiFolder(exportFolderRootPath, currentSoshinFolderName, fileTimeStamp);
-//
-//				// 処理3:imports\scanフォルダの直下に送信完了ファイルを作成する。
-//				makeFileSosinKanryoFolder(scanFolderRootPath, currentSoshinFolderName, fileTimeStamp,
-//						nijiOcrCsvList.size());
-//
-//				// 処理4:2次OCR対象書き込み用Listを初期化する。
-//				nijiOcrCsvList.clear();
-//			}
-//
-//
-//			// 処理4:2次OCR対象書き込み用Listを初期化する。
-//			nijiOcrCsvList.clear();
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -480,12 +331,17 @@ public class FolderRebuild {
 	 * 2次OCR対象CSVデータを書き込む
 	 * @param sousinFolderName: 送信フォルダ名
 	 * @param csvData
+	 * @throws IOException
+	 * 戻り値：書き込んだ後のデータ件数。
 	 */
-	private void writeCsvDataToNijiOcrCsvFile(String sousinFolderName, List<String[]> csvData) {
+	private int writeCsvDataToNijiOcrCsvFile(String sousinFolderName, List<String[]> csvData) throws IOException {
 		//初期化
 		String nijiOcrFileName = null;
+		int csvDataCnt = 0;
 		File file = new File(sousinFolderName);
 		List<String[]> nijiOcrCsvList = new ArrayList<String[]>();
+		List<String[]> readAllCsvList = new ArrayList<String[]>();
+		CSVReader reader = null;
 
 		//2次OCR対象データファイル名を取得する。
 		nijiOcrFileName = file.getName();
@@ -502,15 +358,35 @@ public class FolderRebuild {
 			String[] csvHeader = { "バッチ番号", "バッチ内連番", "スキャナ読取日", "依頼書形式", "回転フラグ" };
 			nijiOcrCsvList.add(csvHeader);
 		}
+		//処理：普段はフォルダが既に存在しているのはありえないが、CSVデータのソートができてない場合を想定
+		//して処理を追加
+		else {
+			//フォルダが存在している場合（イレギュラーケース）
+			batchLog.writerLog("★2次OCR既存ファイル名：" + file.getName(), BatchLogLevel.INFO);
 
-		//処理：ヘッダを含むCSVデータを作成する。
-		for(String[] strData : csvData) {
+			//処理：既存のCSVファイルを読む
+			reader = new CSVReader(new FileReader(nijiOcrFileName));
+
+			//既存のCSVファイルを読み取りする。
+			readAllCsvList = reader.readAll();
+
+			//処理：既存のデータを追加する。
+			for (String[] strData : readAllCsvList) {
+				nijiOcrCsvList.add(strData);
+			}
+
+		}
+
+		//処理：ヘッダを含む全部のCSVデータを作成する。
+		for (String[] strData : csvData) {
 			nijiOcrCsvList.add(strData);
 		}
 
 		//CSVデータを書き込む
 		try {
 			CsvUtil.writeCsvData(nijiOcrFileName, nijiOcrCsvList);
+			csvDataCnt = nijiOcrCsvList.size() - 1; //ヘッダはカウントしない
+
 		} catch (UnsupportedEncodingException e) {
 			// TODO 自動生成された catch ブロック
 			batchLog.writerLog(e.getMessage(), BatchLogLevel.ERROR);
@@ -519,54 +395,81 @@ public class FolderRebuild {
 			batchLog.writerLog(e.getMessage(), BatchLogLevel.ERROR);
 		}
 
+		return csvDataCnt;
+
 	}
 
 	/**
 	 * ②exportフォルダに受信監視ファイルを作成（中身は空）
 	 * @param rootPath：exportsフォルダの直下
-	 * @param sousinFolderName: 送信フォルダ名
+	 * @param sousinFolderName: 送信フォルダ名(フルパスあり)
 	 * @param fileTimeStamp：送信フォルダの後ろについて来るタイムスタンプ
 	 */
-	private void makeFileJyusinKansiFolder(String rootPath, String sousinFolderName, String fileTimeStamp) {
+	private void makeFileJyusinKansiFolder(String exportRootPath, String sousinFolderName
+			, String fileTimeStamp) {
 
 		//初期化
-		String fileName = null;
-		File file = null;
+		String newExportFileName = null;
+		String kizonExportFileName = null;
 
-		fileName = sousinFolderName + "_" + fileTimeStamp;
-		fileName = new File(fileName).getName();
-		file = new File(rootPath, fileName);
+		File fileKizonSousinFolder = new File(sousinFolderName);
 
-		//2次OCR対象データファイル名を取得する。
-		fileName = file.getPath();
-		createFile(fileName);
+		newExportFileName = fileKizonSousinFolder.getName() + "_" + fileTimeStamp;
+		newExportFileName = new File(exportRootPath, newExportFileName).getAbsolutePath();
+
+		//既存ファイル名を取得（タイムスタンプあり,パス情報なし）
+		kizonExportFileName = exsistsFileExceptionTimeStamp(exportRootPath
+									, fileKizonSousinFolder.getName());
+
+		//イレギュラー対応：CSVファイルのソートができてない場合があるので、その場合は
+		//exportフォルダにファイルを作成しない。新規のみ作成する
+		if (kizonExportFileName == null) {
+			createFile(newExportFileName);
+		} else {
+			//存在しなければ、何もしない
+			batchLog.writerLog("★export既存ファイル名：" + kizonExportFileName, BatchLogLevel.INFO);
+		}
 
 	}
 
 	/**
 	 * ③scanフォルダに送信完了ファイルを作成
-	 * @param rootPath: scanフォルダの直下
-	 * @param sousinFolderName：送信フォルダ名
+	 * @param scanRootPath: scanフォルダの直下
+	 * @param sousinFolderName：送信フォルダ名(フルパス)
 	 * @param fileTimeStamp：送信フォルダの後ろについて来るタイムスタンプ
 	 * @param cnt：送信フォルダにあるJpgファイルの数
 	 */
-	private void makeFileSosinKanryoFolder(String rootPath, String sousinFolderName, String fileTimeStamp, int cnt) {
-		//初期化
-		String fileName = null;
-		File file = null;
+	private void makeFileSosinKanryoFolder(String scanRootPath, String sousinFolderName
+			, String fileTimeStamp, int cnt) {
 
-		fileName = sousinFolderName + "_" + fileTimeStamp + ".end";
-		fileName = new File(fileName).getName();
-		file = new File(rootPath, fileName);
+		//初期化
+		String newScanfileName = null;
+		String kizonScanfileName = null;
+		File fileKizonSousinFolder = new File(sousinFolderName);
+
+		newScanfileName = new File(scanRootPath, fileKizonSousinFolder.getName()
+				+ "_" + fileTimeStamp + ".end").getAbsolutePath();
 
 		//2次OCR対象データファイル名を取得する。
-		fileName = file.getPath();
-		createFile(fileName);
+		kizonScanfileName = exsistsFileExceptionTimeStamp(scanRootPath, fileKizonSousinFolder.getName());
+		batchLog.writerLog("★scan新規ファイル名：" + kizonScanfileName, BatchLogLevel.INFO);
+
+		//ファイルのソートが正しくないことを考慮して、存在しない場合のみ、新規作成する
+		if (kizonScanfileName == null) {
+			createFile(newScanfileName);
+			fileKizonSousinFolder = new File(newScanfileName);
+		}
+		//存在した場合は、既存のファイルを上書きする。
+		else {
+			fileKizonSousinFolder = new File(scanRootPath, kizonScanfileName);
+			batchLog.writerLog("★scan既存ファイル名へ上書き：" + kizonScanfileName, BatchLogLevel.INFO);
+
+		}
 
 		//件数をファイルに書き込む
 		try {
 
-			OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(file), "Shift_JIS");
+			OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(fileKizonSousinFolder), "Shift_JIS");
 			BufferedWriter bw = new BufferedWriter(osw);
 
 			bw.write(String.valueOf(cnt));
@@ -578,6 +481,39 @@ public class FolderRebuild {
 			// TODO 自動生成された catch ブロック
 			batchLog.writerLog(e.getMessage(), BatchLogLevel.ERROR);
 		}
+
+	}
+
+	/**送信完了フォルダと受信監視フォルダにファイルが存在しているかチェックする。
+	 * @param rootPath
+	 * @param exsistFileName
+	 * @return 存在したファイル名
+	 */
+	private String exsistsFileExceptionTimeStamp(String rootPath, String exsistFileName) {
+
+		String kizonFileName = null;
+		String kizonFileNameNoTimestamp = null;
+
+		File existFile = null;
+
+		existFile = new File(rootPath);
+
+		// 処理：ルートフォルダのサブディレクトリを検索
+		File[] files = existFile.listFiles();
+		for (File exsitsFile : files) {
+			//処理：タイムスタンプを外す
+			kizonFileNameNoTimestamp = exsitsFile.getName().substring(0, 27);
+			//			batchLog.writerLog("★kizonFileNameNoTimestamp：" + kizonFileNameNoTimestamp, BatchLogLevel.INFO);
+
+			//処理：フォルダが既に存在しているか確認する
+			if (kizonFileNameNoTimestamp.equals(exsistFileName)) {
+				kizonFileName = exsitsFile.getName();
+				//				batchLog.writerLog("既存ファイル名：" + strExsistsFileName, BatchLogLevel.INFO);
+				break;
+			}
+		}
+
+		return kizonFileName;
 
 	}
 
@@ -596,7 +532,7 @@ public class FolderRebuild {
 		String folderName = null;
 
 		folderName = scanReadDate + "_" + batchNo + "_" + kaiJi + "_" + itakuSyaCode;
-		folderName = new File(rootPath, folderName).getPath();
+		folderName = new File(rootPath, folderName).getAbsolutePath();
 
 		return folderName;
 	}
@@ -613,7 +549,6 @@ public class FolderRebuild {
 
 		return formattedBatchNo;
 	}
-
 
 	/**
 	 * レコード連番の左0埋め
@@ -797,7 +732,6 @@ public class FolderRebuild {
 			return imageFileFullPath;
 
 		}
-
 
 		// 処理：ルートフォルダのサブディレクトリを検索
 		File[] files = searchRootPath.listFiles();
