@@ -10,8 +10,10 @@ import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import au.com.bytecode.opencsv.CSVReader;
@@ -90,6 +92,8 @@ public class FolderRebuild {
 			propInfoCsvFileName = collectionProperty.getPropInfoCsvFileName();
 
 			// Debug
+			batchLog.writerLog("---------バッチ実行開始-----------" , BatchLogLevel.INFO);
+			batchLog.writerLog("JARファイルバージョン：" + constantCommon.JAR_VERSION, BatchLogLevel.INFO);
 			batchLog.writerLog("取り込み元ルートパス：" + propInputRootPath, BatchLogLevel.INFO);
 			batchLog.writerLog("出力先ルートパス：" + propOutputRootPath, BatchLogLevel.INFO);
 			batchLog.writerLog("取り込み用CSVファイル：" + propInfoCsvFileName, BatchLogLevel.INFO);
@@ -115,6 +119,10 @@ public class FolderRebuild {
 			//バッチの件数
 			batchLog.writerLog("CSVファイル全件数：" + readAllCsvList.size()
 								, BatchLogLevel.INFO);
+
+			//事前処理：スキップ処理を行う
+			//(関数実行後、readAllCsvListの不要なデータは削除される)。
+			removeSkipCsvData(readAllCsvList);
 
 			for (String[] csvValueArray : readAllCsvList) {
 
@@ -317,14 +325,133 @@ public class FolderRebuild {
 			// 処理4:2次OCR対象書き込み用Listを初期化する。
 			nijiOcrCsvList.clear();
 
+			batchLog.writerLog("JARファイルバージョン：" + constantCommon.JAR_VERSION, BatchLogLevel.INFO);
+			batchLog.writerLog("---------バッチ実行正常終了-----------" , BatchLogLevel.INFO);
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			// TODO 自動生成された catch ブロック
 			batchLog.writerLog(e.getMessage(), BatchLogLevel.ERROR);
+			batchLog.writerLog("JARファイルバージョン：" + constantCommon.JAR_VERSION, BatchLogLevel.INFO);
+			batchLog.writerLog("---------バッチ実行異常終了-----------" , BatchLogLevel.INFO);
 		}
 
 		return 0;
+	}
+
+	/**
+	 * CSV読み取り後、スキップすべきデータを削除する
+	 * @param readAllCsvList
+	 */
+	private void removeSkipCsvData(List<String[]> readAllCsvList) {
+
+		//初期化
+		int batchNo = 0;
+		int cntSkip = 0;
+		String iraisyoSyurui = null;
+		String itakuSyacode = null;
+		String syoruiSyubetu = null;
+		String jyuyoKaCode = null;
+		String[] skipItakusyaArray = { "999999", "9999999", "99999999",
+				"999999999", "9999999999", "99999999999" };
+
+		// 処理１：全件データを回して削除対象を特定する
+		for (String[] csvValueArray : readAllCsvList) {
+
+			// 各列から必要な値を取得して、判断する
+			for (int i = 0; i < csvValueArray.length; i++) {
+
+				//必要以上読まない
+				if (i > constantCommon.CSV_INDEX_JUYOKACODE)
+					break;
+
+				switch (i) {
+
+				//処理１：バッチ番号は９６００以上の場合は、データを削除する。
+				case constantCommon.CSV_INDEX_BATCHNO:
+					batchNo = Integer.parseInt(csvValueArray[i]);
+
+					if (batchNo >= constantCommon.CSV_LIMIT_BATCHNO) {
+						// 後で削除するために、マークをつける
+						if (!csvValueArray[0].contains("skip")) {
+							csvValueArray[0] = "skip(バッチ番号)_" + csvValueArray[0];
+						}
+					}
+					break;
+
+				//処理２：依頼書種類が０以外だったら、データを削除する。
+				case constantCommon.CSV_INDEX_IRAISYOSYURUI:
+					iraisyoSyurui = csvValueArray[i];
+
+					if (!iraisyoSyurui.equals(constantCommon.CSV_LIMIT_IRAISYOSYURUI)) {
+
+						// 後で削除するために、マークをつける
+						if (!csvValueArray[0].contains("skip")) {
+							csvValueArray[0] = "skip(依頼書種類)_" + csvValueArray[0];
+						}
+					}
+					break;
+
+				//処理３：委託者コードがAll 9の場合は、データを削除する。
+				case constantCommon.CSV_INDEX_ITAKUSYACODE:
+					itakuSyacode = csvValueArray[i];
+
+					//処理：既存のスキップパターンに属するか判断する。
+					if (Arrays.asList(skipItakusyaArray).contains(itakuSyacode)) {
+
+						// 後で削除するために、マークをつける
+						if (!csvValueArray[0].contains("skip")) {
+							csvValueArray[0] = "skip(委託者コード)_" + csvValueArray[0];
+						}
+					}
+					break;
+
+				//処理４：書類種別が１以外の場合は、データを削除する。
+				case constantCommon.CSV_INDEX_SYORUISYUBETU:
+					syoruiSyubetu = csvValueArray[i];
+
+					if (!syoruiSyubetu.equals(constantCommon.CSV_LIMIT_SYORUISYUBETU)) {
+
+						// 後で削除するために、マークをつける
+						if (!csvValueArray[0].contains("skip")) {
+							csvValueArray[0] = "skip(書類種別)_" + csvValueArray[0];
+						}
+					}
+					break;
+
+				//処理５：需要家コードが１の場合は、データを削除する。
+				case constantCommon.CSV_INDEX_JUYOKACODE:
+					jyuyoKaCode = csvValueArray[i];
+
+					if (jyuyoKaCode.equals(constantCommon.CSV_SKIP_JUYOKACODE)) {
+
+						// 後で削除するために、マークをつける
+						if (!csvValueArray[0].contains("skip")) {
+							csvValueArray[0] = "skip(需要家コード)_" + csvValueArray[0];
+						}
+					}
+					break;
+
+				} //switch終了
+			} // 一行のfor終了
+
+		} // 全CSVファイルのfor終了
+
+
+		// 重要：ConcurrentModificationExceptionエラー発生防止のため、以下のコードを使う
+		Iterator<String[]> iter = readAllCsvList.iterator();
+		while (iter.hasNext()) {
+			String[] csvValueArray = (String[]) iter.next();
+
+			if (csvValueArray[0].startsWith("skip")) {
+				iter.remove();
+				cntSkip++;
+				batchLog.writerLog("スキップ：" + Arrays.toString(csvValueArray), BatchLogLevel.INFO);
+			}
+		}
+
+		batchLog.writerLog("スキップ件数：" + cntSkip, BatchLogLevel.INFO);
+
 	}
 
 	/**
